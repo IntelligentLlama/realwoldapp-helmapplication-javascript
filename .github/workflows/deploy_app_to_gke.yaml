@@ -18,6 +18,8 @@ env:
   DEPLOYMENT_NAME: react-redux-chart    
   SERVICE_ACCOUNT: ${{ secrets.GKE_SA_KEY }}
 
+
+
 # Environment variables available to all jobs and steps in this workflow
 
 jobs:
