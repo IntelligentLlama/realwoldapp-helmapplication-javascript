@@ -47,25 +47,7 @@ jobs:
       - name: 'Main Code checkout'
         uses: actions/checkout@v2
      
-     # Requires you create a GitHub personal Token 
-     # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
-     #
-#       - name: Get RealWorld app from its repo
-#         uses: GuillaumeFalourd/clone-github-repo-action@v1
-#         with:
-#           owner: 'Vidinci' 
-#           repository: 'realworld-test-cm'
-#           access-token: ${{ secrets.PAT }}  
        
-#       # Runs a single command using the runners shell
-#       - name: Run ls command
-#         run: ls ./*
-        
-#       - name: Access cloned repository content
-#         run: |
-#          cd $APP_REPO_NAME
-#          ls -l
-         
       # Setup gcloud CLI
       - uses: google-github-actions/setup-gcloud@94337306dda8180d967a56932ceb4ddcf01edae7
         with:
