@@ -1,0 +1,124 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Manual_install_RealWorld_dev
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  #push:
+  #  branches: [ main ]
+  #pull_request:
+  #  branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      installapp:
+        description: 'Enter yes or no (lowercase) if install should happen'
+        required: true
+        default: 'No'
+#==============================
+# Variable section
+#==============================
+env:
+  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
+  SERVICE_ACCOUNT: ${{ secrets.GKE_SA_KEY }}
+  GITHUB_SHA: ${{ github.sha }}
+  GKE_CLUSTER: gke-ycit-tformers-default-dev
+  GKE_REGION: us-central1
+#   APP_REPO_OWNER: Vidinci
+#   APP_REPO_NAME: realworld-test-cm
+  IMAGE: react-redux
+  DEPLOYMENT_NAME: react-redux
+ #  CHART_PATH: helmchartLab9/realworldchart    #path exists in the realworld repository, realworldchart folder contains the value.yml and chart.yml files
+  CHART_PATH: ./react-redux-chart
+
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    environment: dev
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: 'Main Code checkout'
+        uses: actions/checkout@v2
+     
+     # Requires you create a GitHub personal Token 
+     # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+     #
+#       - name: Get RealWorld app from its repo
+#         uses: GuillaumeFalourd/clone-github-repo-action@v1
+#         with:
+#           owner: 'Vidinci' 
+#           repository: 'realworld-test-cm'
+#           access-token: ${{ secrets.PAT }}  
+       
+#       # Runs a single command using the runners shell
+#       - name: Run ls command
+#         run: ls ./*
+        
+#       - name: Access cloned repository content
+#         run: |
+#          cd $APP_REPO_NAME
+#          ls -l
+         
+      # Setup gcloud CLI
+      - uses: google-github-actions/setup-gcloud@94337306dda8180d967a56932ceb4ddcf01edae7
+        with:
+          service_account_key: ${{ secrets.GKE_SA_KEY }}
+          project_id: ${{ secrets.GKE_PROJECT }}
+
+    # Configure docker to use the gcloud command-line tool as a credential helper
+      - run: |
+          gcloud auth configure-docker
+    
+     # Build the Docker image, for the real world app react-redux
+     # Change the path to the location of the docker file 
+     # Ex. in following command the Dockerfile is from the cloned repo under a folder named react-redux (same name as image name, it could have been different)
+      - name: Build
+        if: ${{ github.event.inputs.installapp  =='yes' }}
+        run: |-
+          docker build \
+           --tag "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA" \
+           --build-arg GITHUB_SHA="$GITHUB_SHA" \
+           --build-arg GITHUB_REF="$GITHUB_REF" \
+           .
+           # ./$APP_REPO_NAME/$IMAGE
+           
+     # Push the Docker image to Google Container Registry, for the real world app react-redux
+      - name: Publish
+        if: ${{ github.event.inputs.installapp  =='yes' }}
+        run: |-
+          docker push "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA"
+      # Install realworld app helm chart
+      #  --set=image.tag=${{ env.GITHUB_SHA }}
+
+      - name: Install Helm chart react_redux
+        uses: hahow/install-helm-chart-action@v1.0.3
+        with:
+          gcloud_auth_key: ${{ secrets.GKE_SA_KEY }}
+          gcloud_project_id: ${{ secrets.GKE_PROJECT }}
+          cluster_name: ${{ env.GKE_CLUSTER }}  #'gke-tformers-tformers-default-dev'
+          cluster_region: ${{ env.GKE_REGION }} # us-central1
+          release_namespace: default
+          release_name: react-redux
+          # chart_name: ./${{ env.APP_REPO_NAME }}/${{ env.CHART_PATH }}  #./charts/realworldchart
+          chart_name: ${{ env.CHART_PATH }}
+          helm_upgrade_args: |
+               --set=image.tag=d633740f911c353f0aa7540a1cd92a3ab5263355
+               
+      # Get info about the services deployed
+      - name: Service info IP and port
+        run: |
+          echo "Use External IP and port 4100 to acces the application from the browser. ex. http://IP:4100"
+          # echo "run following commands to get info about the service (replace parameters with proper values)"
+          # echo 'gcloud container clusters get-credentials {GKE_CLUSTER_NAME} --region {GKE_CLUSTER_REGION} --project {GCP_PROJECT_ID}'
+          # echo kubectl get services -o wide
+          gcloud container clusters get-credentials $GKE_CLUSTER \
+          --region $GKE_REGION \
+          --project ${{ secrets.GKE_PROJECT }}
+          kubectl get services -o wide
